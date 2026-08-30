@@ -26,7 +26,7 @@ fun CctvMonitorScreen(
     onOpenLog: () -> Unit
 ) {
     var isPlaying by remember { mutableStateOf(false) }
-    var useMountingVideo by remember { mutableStateOf(false) }
+    var useMountingVideo by remember { mutableStateOf(true) }
     var heatDetected by remember { mutableStateOf(false) }
 
     // Fake the ML detection after 4 seconds of video playing (applies to both cameras)
@@ -195,7 +195,7 @@ fun CctvMonitorScreen(
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Cow #42 has shown mounting behavior. Artificial Insemination window is optimal in 12-18 hours.",
+                            "Cow #42 has shown mounting behavior.",
                             color = Color.Black,
                             fontSize = 14.sp
                         )
@@ -204,7 +204,7 @@ fun CctvMonitorScreen(
                             onClick = onOpenLog,
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                         ) {
-                            Text("Log AI Event & View Animal")
+                            Text("Save Event & View Animal")
                         }
                     }
                 }

@@ -117,11 +117,25 @@ fun MastitisScannerScreen(
                         .addOnSuccessListener { labels ->
                             for (label in labels) {
                                 val text = label.text.lowercase()
-                                // Broad list of acceptable categories for an udder or milk sample
-                                if (text.contains("cow") || text.contains("cattle") || text.contains("animal") 
-                                    || text.contains("udder") || text.contains("milk") || text.contains("liquid")
-                                    || text.contains("livestock") || text.contains("mammal")
-                                    || text.contains("snout")) {
+                                // Broad list of acceptable categories for an udder, cow, or milk/liquid sample
+                                val validKeywords = listOf(
+                                    // Bovine & Animal terms
+                                    "cow", "cattle", "bull", "calf", "bovine", "animal", "livestock", "mammal", "fauna",
+                                    "udder", "teat", "snout", "horn", "flesh", "skin", "hide", "fur", "organism",
+                                    "terrestrial animal", "working animal", "vertebrate", "veterinary",
+
+                                    // Milk, Dairy, Food & Liquid terms
+                                    "milk", "liquid", "fluid", "dairy", "cream", "beverage", "drink", "food", "ingredient",
+                                    "recipe", "cuisine", "soup", "curd", "yogurt", "foam", "whey", "butter", "cheese", "paste",
+
+                                    // Containers & Tableware (where milk/CMT samples are collected)
+                                    "dish", "bowl", "cup", "plate", "tableware", "dishware", "serveware", "drinkware",
+                                    "container", "saucer", "basin", "vessel", "glass", "mug", "pot", "tray", "circle",
+
+                                    // Visual sample characteristics
+                                    "white", "yellow", "beige", "drop", "puddle", "water"
+                                )
+                                if (validKeywords.any { text.contains(it) }) {
                                     isValidUdder = true
                                     break
                                 }
