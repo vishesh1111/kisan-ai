@@ -108,6 +108,20 @@ By combining Artificial Intelligence, real-time environmental data, and digital 
 **🚨 7.3 Livestock Geofencing & Safety Alerts**
 - Establishes predefined geographical boundaries for livestock.
 - Alerts farmers when animals leave their designated safe areas.
+  ### 🐔 7.4 AI-Based Poultry Cough Detection
+- **Voice-Based Analysis:** Farmers provide audio recordings of poultry sounds through the app.
+- **ML-Based Detection:** The machine learning model analyzes the audio to identify coughing sounds and assess potential respiratory disease risk.
+- **Risk Assessment:** Provides a risk indication to help farmers recognize possible health issues early and take appropriate action.
+
+### 🐄 7.5 AI-Based Cow Heat Detection
+- **Unusual Behaviour Monitoring:** Analyzes unusual behavioural patterns that may indicate heat in cows.
+- **AI-Based Identification:** The model evaluates available behavioural data to identify cows showing possible signs of heat.
+- **Farmer Alerts:** Notifies the farmer about the specific cow that may be in heat, helping with timely breeding management.
+
+### 🥛 7.6 AI-Based Mastitis Risk Detection
+- **Image-Based Milk Analysis:** Farmers provide images of milk through the app for analysis.
+- **ML-Based Assessment:** The model analyzes visible milk characteristics to identify abnormalities associated with potential mastitis risk.
+- **Risk Indication:** Provides a risk assessment to help farmers identify possible issues early and seek veterinary examination when necessary.
 
 ### 📶 8. Accessibility & Connectivity
 
