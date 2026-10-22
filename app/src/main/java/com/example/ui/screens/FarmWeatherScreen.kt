@@ -27,8 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Farm
 import com.example.data.model.FarmWeather
+import com.example.data.model.ResultProvenance
 import com.example.data.network.WeatherService
 import com.example.ui.components.KisanTopAppBar
+import com.example.ui.theme.AlertRed
 import com.example.ui.theme.PrimaryGreen
 import com.example.ui.theme.SecondaryContainerGreen
 import kotlinx.coroutines.launch
@@ -263,6 +265,65 @@ fun FarmWeatherScreen(
                         }
                     }
                 }
+            } else if (liveWeather!!.provenance == ResultProvenance.ERROR) {
+                val farmWeather = liveWeather!!
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().testTag("weather_error_card"),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, AlertRed)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                color = AlertRed.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = "RADAR SERVICE ERROR",
+                                    color = AlertRed,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                            Text(
+                                text = farmWeather.conditionText,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AlertRed,
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = farmWeather.agriculturalAdvisory,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp
+                            )
+                            Text(
+                                text = "Explanation: ${farmWeather.provenance.plainLanguageExplanation}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                            Button(
+                                onClick = { refreshWeather() },
+                                colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth().height(44.dp).testTag("weather_retry_button")
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Retry Radar Sync", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
             } else {
                 val farmWeather = liveWeather!!
 
@@ -275,6 +336,10 @@ fun FarmWeatherScreen(
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            val isLive = farmWeather.provenance == ResultProvenance.LIVE
+                            val badgeBg = if (isLive) PrimaryGreen.copy(alpha = 0.12f) else Color(0xFFFFF3E0)
+                            val badgeColor = if (isLive) PrimaryGreen else Color(0xFFE65100)
+
                             // Top Bar: Location + Realtime Badge + Updated Time
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -294,7 +359,7 @@ fun FarmWeatherScreen(
                                 }
 
                                 Surface(
-                                    color = PrimaryGreen.copy(alpha = 0.12f),
+                                    color = badgeBg,
                                     shape = RoundedCornerShape(6.dp)
                                 ) {
                                     Row(
@@ -305,14 +370,44 @@ fun FarmWeatherScreen(
                                             modifier = Modifier
                                                 .size(6.dp)
                                                 .clip(CircleShape)
-                                                .background(PrimaryGreen)
+                                                .background(badgeColor)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = "LIVE SATELLITE",
+                                            text = if (isLive) "LIVE SATELLITE" else "Estimated, not live",
                                             fontSize = 9.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = PrimaryGreen
+                                            color = badgeColor
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (!isLive) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Surface(
+                                    color = Color(0xFFFFF3E0),
+                                    shape = RoundedCornerShape(6.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Estimated, not live",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFE65100)
+                                        )
+                                        Text(
+                                            text = if (!farmWeather.lastLiveSuccessfulTime.isNullOrBlank())
+                                                "Last live fetch: ${farmWeather.lastLiveSuccessfulTime}"
+                                            else
+                                                "No prior live fetch",
+                                            fontSize = 10.5.sp,
+                                            color = Color(0xFFE65100)
                                         )
                                     }
                                 }

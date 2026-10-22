@@ -217,7 +217,18 @@ data class ChatMessage(
     val actionAvoid: String? = null,
     val isDiagnosis: Boolean = false,
     val diagnosisTitle: String? = null,
-    val diagnosisConfidence: Int? = null
+    val diagnosisConfidence: Int? = null,
+    val provenance: String = "LIVE",
+    val errorMessage: String? = null
+)
+
+/**
+ * Result wrapper for AI Advisor queries carrying honest provenance metadata.
+ */
+data class FarmAdvisorResult(
+    val text: String,
+    val provenance: ResultProvenance = ResultProvenance.LIVE,
+    val errorMessage: String? = null
 )
 
 /**
@@ -455,7 +466,10 @@ data class FarmWeather(
     val fieldWorkabilityScore: Int = 85, // 0 - 100%
     val livestockThiScore: Double = 72.0, // Temperature-Humidity Index
     val livestockStressLevel: String = "Normal", // Normal, Mild Stress, Moderate Stress, Severe
-    val lastUpdatedTime: String = "Just now"
+    val lastUpdatedTime: String = "Just now",
+    val provenance: ResultProvenance = ResultProvenance.LIVE,
+    val lastLiveSuccessfulTime: String? = null,
+    val errorMessage: String? = null
 )
 
 data class HourlyForecast(
@@ -487,7 +501,9 @@ data class CropPathologyResult(
     val recommendedChemical: String,
     val organicRemedy: String,
     val soilAndNutrientAdvice: String,
-    val isGeminiVisionAnalyzed: Boolean = true
+    val isGeminiVisionAnalyzed: Boolean = true,
+    val provenance: ResultProvenance = ResultProvenance.LIVE,
+    val errorMessage: String? = null
 )
 
 data class SchemeCreditRecord(
@@ -514,7 +530,9 @@ data class CropGrowthVisionAnalysis(
     val diseaseStatus: String,
     val healthScore: Int,
     val keyActionRecommendation: String,
-    val confidence: String = "96% AI Accuracy"
+    val confidence: String = "96% AI Accuracy",
+    val provenance: ResultProvenance = ResultProvenance.LIVE,
+    val errorMessage: String? = null
 )
 
 @Entity(tableName = "soil_health_records")

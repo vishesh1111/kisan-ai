@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.model.*
 import kotlinx.coroutines.CoroutineScope
@@ -27,7 +28,7 @@ import kotlinx.coroutines.launch
         SoilHealthRecord::class,
         CropTask::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,6 +38,13 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE chat_messages ADD COLUMN provenance TEXT NOT NULL DEFAULT 'LIVE'")
+                db.execSQL("ALTER TABLE chat_messages ADD COLUMN errorMessage TEXT DEFAULT NULL")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -44,6 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "kisan_ai_database"
                 )
+                    .addMigrations(MIGRATION_8_9)
                     .fallbackToDestructiveMigration()
                     .addCallback(DatabaseCallback(scope))
                     .build()

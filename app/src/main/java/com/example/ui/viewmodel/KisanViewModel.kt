@@ -1313,7 +1313,7 @@ class KisanViewModel(application: Application) : AndroidViewModel(application) {
             isAgentThinking.value = true
 
             val activeFarm = allFarms.value.find { it.id == _selectedFarmId.value }
-            val responseText = GeminiFarmAgent.askFarmAdvisor(
+            val advisorResult = GeminiFarmAgent.askFarmAdvisor(
                 prompt = userText,
                 userProfile = userProfile.value,
                 activeFarm = activeFarm,
@@ -1327,19 +1327,23 @@ class KisanViewModel(application: Application) : AndroidViewModel(application) {
             val agentMsg = if (userText.lowercase().contains("spot") || userText.lowercase().contains("disease") || attachedImageRes != null) {
                 ChatMessage(
                     isFromUser = false,
-                    text = responseText,
+                    text = advisorResult.text,
                     timeFormatted = "Just now",
                     isDiagnosis = true,
                     diagnosisTitle = "Pathology Diagnostic Analysis",
-                    diagnosisConfidence = 92,
+                    diagnosisConfidence = if (advisorResult.provenance == ResultProvenance.LIVE) 92 else 0,
                     actionDoToday = "Apply targeted organic fungicide or neem extract spray on affected foliage.",
-                    actionAvoid = "Avoid excess nitrogen fertilizer application during humid periods."
+                    actionAvoid = "Avoid excess nitrogen fertilizer application during humid periods.",
+                    provenance = advisorResult.provenance.name,
+                    errorMessage = advisorResult.errorMessage
                 )
             } else {
                 ChatMessage(
                     isFromUser = false,
-                    text = responseText,
-                    timeFormatted = "Just now"
+                    text = advisorResult.text,
+                    timeFormatted = "Just now",
+                    provenance = advisorResult.provenance.name,
+                    errorMessage = advisorResult.errorMessage
                 )
             }
 
@@ -1355,6 +1359,11 @@ class KisanViewModel(application: Application) : AndroidViewModel(application) {
             doctorPathologyResult.value = result
             doctorDiagnosis.value = "${result.diseaseName} (${result.confidence})"
         }
+    }
+
+    fun clearCropDoctorDiagnosis() {
+        doctorPathologyResult.value = null
+        doctorDiagnosis.value = null
     }
 
     fun addFinancialTransaction(

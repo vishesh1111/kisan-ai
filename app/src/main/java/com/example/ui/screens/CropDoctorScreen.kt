@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.model.CropPathologyResult
+import com.example.data.model.ResultProvenance
 import com.example.ui.components.KisanTopAppBar
 import com.example.ui.theme.*
 
@@ -49,6 +50,7 @@ fun CropDoctorScreen(
     diagnosisResult: String?,
     pathologyResult: CropPathologyResult?,
     onScanPhoto: (Bitmap?, String) -> Unit,
+    onClearDiagnosis: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -66,6 +68,7 @@ fun CropDoctorScreen(
         if (bitmap != null) {
             capturedBitmap = bitmap
             isSampleImageUsed = false
+            onClearDiagnosis()
         }
     }
 
@@ -80,6 +83,7 @@ fun CropDoctorScreen(
                 if (bitmap != null) {
                     capturedBitmap = bitmap
                     isSampleImageUsed = false
+                    onClearDiagnosis()
                 }
             } catch (e: Exception) {
                 // Ignore error
@@ -167,7 +171,12 @@ fun CropDoctorScreen(
                             val isSelected = selectedCropName == crop
                             FilterChip(
                                 selected = isSelected,
-                                onClick = { selectedCropName = crop },
+                                onClick = {
+                                    if (selectedCropName != crop) {
+                                        selectedCropName = crop
+                                        onClearDiagnosis()
+                                    }
+                                },
                                 label = {
                                     Text(
                                         text = crop,
@@ -216,10 +225,17 @@ fun CropDoctorScreen(
 
                             Surface(
                                 color = SecondaryContainerGreen,
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.clickable {
+                                    if (!isSampleImageUsed) {
+                                        capturedBitmap = null
+                                        isSampleImageUsed = true
+                                        onClearDiagnosis()
+                                    }
+                                }
                             ) {
                                 Text(
-                                    text = if (isSampleImageUsed) "Sample Preview" else "Custom Scan",
+                                    text = if (isSampleImageUsed) "Sample Preview" else "Custom Scan (Tap to reset)",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = PrimaryGreen,
@@ -322,7 +338,16 @@ fun CropDoctorScreen(
                     modifier = Modifier
                         .testTag("analyze_symptoms_card_button")
                         .fillMaxWidth()
-                        .clickable { onScanPhoto(capturedBitmap, selectedCropName) },
+                        .clickable {
+                            val bitmapToAnalyze = if (capturedBitmap != null) {
+                                capturedBitmap
+                            } else if (isSampleImageUsed) {
+                                BitmapFactory.decodeResource(context.resources, R.drawable.img_leaf_disease)
+                            } else {
+                                null
+                            }
+                            onScanPhoto(bitmapToAnalyze, selectedCropName)
+                        },
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = PrimaryGreen),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -398,51 +423,212 @@ fun CropDoctorScreen(
                         visible = true,
                         enter = fadeIn() + slideInVertically()
                     ) {
-                        Card(
-                            modifier = Modifier
-                                .testTag("crop_doctor_diagnosis_card")
-                                .fillMaxWidth(),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, PrimaryGreen)
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                        if (pathologyResult.provenance == ResultProvenance.ERROR) {
+                            // Honest Error State - No Canned Data
+                            Card(
+                                modifier = Modifier
+                                    .testTag("crop_doctor_error_card")
+                                    .fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, AlertRed)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(18.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    val isInvalidSubject = pathologyResult.diseaseName.startsWith("Invalid Subject")
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Surface(
+                                            color = AlertRed.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text(
+                                                text = if (isInvalidSubject) "INVALID IMAGE" else "ERROR",
+                                                color = AlertRed,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.sp,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                            )
+                                        }
                                         Text(
-                                            text = pathologyResult.diseaseName,
-                                            fontSize = 17.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = AlertRedText
+                                            text = if (isInvalidSubject) "Non-Crop / Blank Image" else "HTTP Error / Parse Failure",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = AlertRed
                                         )
+                                    }
+
+                                    Text(
+                                        text = pathologyResult.diseaseName,
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AlertRed
+                                    )
+
+                                    Text(
+                                        text = pathologyResult.symptomsSummary,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        lineHeight = 18.sp
+                                    )
+
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
                                         Text(
-                                            text = "${pathologyResult.category} • Severity: ${pathologyResult.severity}",
-                                            fontSize = 12.sp,
+                                            text = if (isInvalidSubject)
+                                                "Vision Guard Notice: No agricultural crop foliage detected. AI did not generate a disease diagnosis for this non-crop image."
+                                            else
+                                                "Transparency Notice: ${pathologyResult.provenance.plainLanguageExplanation}",
+                                            fontSize = 11.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(10.dp)
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            if (isInvalidSubject) {
+                                                cameraLauncher.launch(null)
+                                            } else {
+                                                val bitmapToAnalyze = if (capturedBitmap != null) {
+                                                    capturedBitmap
+                                                } else if (isSampleImageUsed) {
+                                                    BitmapFactory.decodeResource(context.resources, R.drawable.img_leaf_disease)
+                                                } else {
+                                                    null
+                                                }
+                                                onScanPhoto(bitmapToAnalyze, selectedCropName)
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth().testTag("crop_doctor_retry_button")
+                                    ) {
+                                        Icon(if (isInvalidSubject) Icons.Default.CameraAlt else Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(if (isInvalidSubject) "Capture Real Leaf & Scan" else "Retry Diagnostic Scan", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        } else {
+                            Card(
+                                modifier = Modifier
+                                    .testTag("crop_doctor_diagnosis_card")
+                                    .fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.5.dp,
+                                    if (pathologyResult.provenance == ResultProvenance.LIVE) PrimaryGreen else Color(0xFFF57C00)
+                                )
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
+                                    // Provenance Badge Header
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val isLive = pathologyResult.provenance == ResultProvenance.LIVE
+                                        val badgeBg = if (isLive) PrimaryGreen.copy(alpha = 0.12f) else Color(0xFFFFF3E0)
+                                        val badgeColor = if (isLive) PrimaryGreen else Color(0xFFE65100)
+
+                                        Surface(
+                                            color = badgeBg,
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(badgeColor)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = if (isLive) "LIVE AI VISION" else "OFFLINE ESTIMATE",
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = badgeColor
+                                                )
+                                            }
+                                        }
+
+                                        Text(
+                                            text = if (isLive) "Gemini Vision Active" else "Offline Heuristics (Not Live)",
+                                            fontSize = 11.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
 
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = pathologyResult.diseaseName,
+                                                fontSize = 17.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = AlertRedText
+                                            )
+                                            Text(
+                                                text = "${pathologyResult.category} • Severity: ${pathologyResult.severity}",
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+
+                                        Surface(
+                                            color = if (pathologyResult.provenance == ResultProvenance.LIVE) SecondaryContainerGreen else Color(0xFFFFF3E0),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Text(
+                                                text = pathologyResult.confidence,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (pathologyResult.provenance == ResultProvenance.LIVE) PrimaryGreen else Color(0xFFE65100),
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                            )
+                                        }
+                                    }
+
+                                    // Plain language explanation callout
+                                    Spacer(modifier = Modifier.height(8.dp))
                                     Surface(
-                                        color = SecondaryContainerGreen,
-                                        shape = RoundedCornerShape(10.dp)
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Text(
-                                            text = pathologyResult.confidence,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = PrimaryGreen,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                            text = if (pathologyResult.provenance == ResultProvenance.LIVE)
+                                                "Model Analyzed: Verified real-time diagnosis via Gemini Vision AI."
+                                            else
+                                                "Offline Estimate: Live AI is unavailable (airplane mode or missing key). Heuristic estimate based on crop profile. Not model-analyzed.",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(8.dp),
+                                            lineHeight = 15.sp
                                         )
                                     }
-                                }
 
-                                Spacer(modifier = Modifier.height(12.dp))
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                                Spacer(modifier = Modifier.height(12.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                                    Spacer(modifier = Modifier.height(12.dp))
 
                                 // Visual Symptoms Explanation by AI
                                 Column(
@@ -528,7 +714,8 @@ fun CropDoctorScreen(
                             }
                         }
                     }
-                } else if (diagnosisResult != null) {
+                }
+            } else if (diagnosisResult != null) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),

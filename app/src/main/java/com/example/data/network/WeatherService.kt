@@ -5,6 +5,7 @@ import com.example.data.model.DailyForecast
 import com.example.data.model.Farm
 import com.example.data.model.FarmWeather
 import com.example.data.model.HourlyForecast
+import com.example.data.model.ResultProvenance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -21,6 +22,12 @@ object WeatherService {
 
     private const val TAG = "WeatherService"
 
+    // Test seam for injectable/overridable base URL
+    var baseUrl: String = "https://api.open-meteo.com/v1/forecast"
+
+    // In-memory persistence of the last successful live fetch timestamp
+    var lastSuccessfulLiveFetchTime: String? = null
+
     /**
      * Fetches real-time live satellite meteorological data for a specific farm GPS location
      * using Open-Meteo high-resolution weather models.
@@ -29,7 +36,8 @@ object WeatherService {
         val lat = farm.latitude
         val lon = farm.longitude
 
-        val urlString = "https://api.open-meteo.com/v1/forecast?" +
+        val separator = if (baseUrl.contains("?")) "&" else "?"
+        val urlString = "$baseUrl" + separator +
                 "latitude=$lat&longitude=$lon" +
                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,dew_point_2m,uv_index,et0_fao_evapotranspiration,soil_temperature_0cm,soil_moisture_0_to_1cm" +
                 "&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,et0_fao_evapotranspiration" +
@@ -203,17 +211,65 @@ object WeatherService {
                     fieldWorkabilityScore = workabilityScore,
                     livestockThiScore = thiScore,
                     livestockStressLevel = livestockStress,
-                    lastUpdatedTime = timeFormat
-                )
+                    lastUpdatedTime = timeFormat,
+                    provenance = ResultProvenance.LIVE,
+                    lastLiveSuccessfulTime = timeFormat
+                ).also {
+                    lastSuccessfulLiveFetchTime = timeFormat
+                }
             } else {
-                Log.w(TAG, "Open-Meteo returned code: ${connection.responseCode}")
+                Log.e(TAG, "Open-Meteo HTTP error returned code: ${connection.responseCode}")
+                return@withContext FarmWeather(
+                    farmId = farm.id,
+                    farmName = farm.name,
+                    locationName = if (farm.village.isNotBlank()) "${farm.village}, ${farm.district}" else farm.location,
+                    state = farm.state,
+                    currentTempC = 0,
+                    conditionText = "Radar Unavailable (HTTP ${connection.responseCode})",
+                    conditionIcon = "cloud",
+                    humidityPercent = 0,
+                    windSpeedKm = 0,
+                    rainProbabilityPercent = 0,
+                    soilMoisturePercent = 0,
+                    uvIndex = 0,
+                    isSevereAlert = false,
+                    alertHeader = null,
+                    agriculturalAdvisory = "Meteorological radar returned HTTP ${connection.responseCode}. Tap 'Refresh Radar' to retry.",
+                    hourlyForecast = emptyList(),
+                    weeklyForecast = emptyList(),
+                    provenance = ResultProvenance.ERROR,
+                    errorMessage = "HTTP ${connection.responseCode}"
+                )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch live weather: ${e.message}")
+            if (e is org.json.JSONException) {
+                Log.e(TAG, "Open-Meteo malformed JSON response: ${e.message}", e)
+                return@withContext FarmWeather(
+                    farmId = farm.id,
+                    farmName = farm.name,
+                    locationName = if (farm.village.isNotBlank()) "${farm.village}, ${farm.district}" else farm.location,
+                    state = farm.state,
+                    currentTempC = 0,
+                    conditionText = "Malformed Weather Telemetry",
+                    conditionIcon = "cloud",
+                    humidityPercent = 0,
+                    windSpeedKm = 0,
+                    rainProbabilityPercent = 0,
+                    soilMoisturePercent = 0,
+                    uvIndex = 0,
+                    isSevereAlert = false,
+                    alertHeader = null,
+                    agriculturalAdvisory = "Received malformed weather telemetry from server. Tap 'Refresh Radar' to retry.",
+                    hourlyForecast = emptyList(),
+                    weeklyForecast = emptyList(),
+                    provenance = ResultProvenance.ERROR,
+                    errorMessage = "Malformed response format"
+                )
+            } else {
+                Log.i(TAG, "Network unavailable for live weather, falling back to offline estimate: ${e.message}")
+                return@withContext computeDynamicFallback(farm)
+            }
         }
-
-        // Fallback dynamically computed from farm coordinates and type
-        return@withContext computeDynamicFallback(farm)
     }
 
     private fun interpretWeatherCode(code: Int): Pair<String, String> {
@@ -533,7 +589,9 @@ object WeatherService {
             fieldWorkabilityScore = workability,
             livestockThiScore = thi,
             livestockStressLevel = stress,
-            lastUpdatedTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+            lastUpdatedTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date()),
+            provenance = ResultProvenance.OFFLINE_ESTIMATE,
+            lastLiveSuccessfulTime = lastSuccessfulLiveFetchTime
         )
     }
 }

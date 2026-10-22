@@ -100,7 +100,11 @@ fun AIAgentScreen(
             contentPadding = PaddingValues(top = 12.dp, bottom = 12.dp)
         ) {
             items(messages) { msg ->
-                ChatMessageItem(message = msg, capturedBitmap = capturedPhotoBitmap)
+                ChatMessageItem(
+                    message = msg,
+                    capturedBitmap = capturedPhotoBitmap,
+                    onRetry = { retryText -> onSendMessage(retryText, null) }
+                )
             }
 
             if (isThinking) {
@@ -294,7 +298,8 @@ fun AIAgentScreen(
 @Composable
 private fun ChatMessageItem(
     message: ChatMessage,
-    capturedBitmap: Bitmap? = null
+    capturedBitmap: Bitmap? = null,
+    onRetry: ((String) -> Unit)? = null
 ) {
     if (message.isFromUser) {
         Column(
@@ -341,6 +346,11 @@ private fun ChatMessageItem(
             }
         }
     } else {
+        val isError = message.provenance == "ERROR"
+        val isLive = message.provenance == "LIVE"
+        val badgeColor = if (isLive) PrimaryGreen else if (isError) AlertRed else Color(0xFFE65100)
+        val badgeBg = if (isLive) PrimaryGreen.copy(alpha = 0.12f) else if (isError) AlertRed.copy(alpha = 0.12f) else Color(0xFFFFF3E0)
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start,
@@ -350,11 +360,11 @@ private fun ChatMessageItem(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(PrimaryGreen),
+                    .background(if (isError) AlertRed else PrimaryGreen),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.SmartToy,
+                    imageVector = if (isError) Icons.Default.Warning else Icons.Default.SmartToy,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
@@ -366,16 +376,65 @@ private fun ChatMessageItem(
             Card(
                 shape = RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 18.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                modifier = Modifier.widthIn(max = 290.dp)
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (isError) AlertRed else MaterialTheme.colorScheme.outline),
+                modifier = Modifier.widthIn(max = 290.dp).testTag(if (isError) "chat_error_bubble" else "chat_bot_bubble")
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Provenance Badge
+                    Surface(
+                        color = badgeBg,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(badgeColor)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isLive) "LIVE AI" else if (isError) "ERROR" else "OFFLINE ESTIMATE",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = badgeColor
+                            )
+                        }
+                    }
+
                     Text(
                         text = message.text,
                         fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = if (isError) AlertRed else MaterialTheme.colorScheme.onSurface,
                         lineHeight = 20.sp
                     )
+
+                    Text(
+                        text = if (isLive)
+                            "Generated live via Gemini API."
+                        else if (isError)
+                            "Service request failed. Tap below to retry."
+                        else
+                            "Offline agronomic heuristics (live AI unavailable).",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (isError && onRetry != null) {
+                        Button(
+                            onClick = { onRetry("Retry previous query") },
+                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().height(32.dp).testTag("chat_retry_button")
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Retry Query", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }

@@ -153,6 +153,7 @@ fun KisanApp(viewModel: KisanViewModel) {
                                 diagnosisResult = doctorDiagnosis,
                                 pathologyResult = doctorPathologyResult,
                                 onScanPhoto = { bitmap, cropName -> viewModel.runCropDoctorScan(bitmap, cropName) },
+                                onClearDiagnosis = { viewModel.clearCropDoctorDiagnosis() },
                                 onBack = { viewModel.navigateBack() }
                             )
                         }

@@ -1370,40 +1370,146 @@ fun AiCropVisionScannerDialog(
 
                 // Detailed AI Vision Results Display
                 visionResult?.let { result ->
-                    Surface(
-                        color = SecondaryContainerGreen.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryGreen.copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                    if (result.provenance == ResultProvenance.ERROR) {
+                        Surface(
+                            color = Color(0xFFFEE2E2),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
+                            modifier = Modifier.fillMaxWidth().testTag("crop_growth_vision_error")
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        color = AlertRed,
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "ERROR",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.5.sp,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Vision Scan Failed", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AlertRed)
+                                }
                                 Text(
-                                    text = "🌾 Crop: ${result.cropType} (${result.variety})",
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    text = result.keyActionRecommendation,
+                                    fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                                Surface(
-                                    color = if (result.healthScore >= 80) PrimaryGreen else AlertRed,
-                                    shape = RoundedCornerShape(4.dp)
+                                Text(
+                                    text = "Explanation: ${result.provenance.plainLanguageExplanation}",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Button(
+                                    onClick = {
+                                        isScanning = true
+                                        scope.launch {
+                                            val res = GeminiFarmAgent.analyzeCropGrowthVision(capturedBitmap, "Standing Crop Field Photo")
+                                            visionResult = res
+                                            isScanning = false
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth().height(36.dp)
                                 ) {
-                                    Text(
-                                        text = "Health: ${result.healthScore}%",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                                    )
+                                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Retry Vision Scan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
+                        }
+                    } else {
+                        Surface(
+                            color = SecondaryContainerGreen.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (result.provenance == ResultProvenance.LIVE) PrimaryGreen.copy(alpha = 0.5f) else Color(0xFFF57C00).copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                // Provenance Badge Header
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val isLive = result.provenance == ResultProvenance.LIVE
+                                    Surface(
+                                        color = if (isLive) PrimaryGreen.copy(alpha = 0.12f) else Color(0xFFFFF3E0),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(if (isLive) PrimaryGreen else Color(0xFFE65100))
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = if (isLive) "LIVE AI VISION" else "OFFLINE ESTIMATE",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isLive) PrimaryGreen else Color(0xFFE65100)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = if (isLive) "Gemini Vision Active" else "Offline Heuristic (Not Live)",
+                                        fontSize = 10.5.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                Text(
+                                    text = if (result.provenance == ResultProvenance.LIVE)
+                                        "Analyzed live from image using Gemini Vision AI."
+                                    else
+                                        "Estimated using offline agronomic heuristics. Live AI is unavailable.",
+                                    fontSize = 10.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "🌾 Crop: ${result.cropType} (${result.variety})",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Surface(
+                                        color = if (result.healthScore >= 80) PrimaryGreen else AlertRed,
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Health: ${result.healthScore}%",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
 
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
@@ -1476,6 +1582,7 @@ fun AiCropVisionScannerDialog(
                                 Text("Open Crop Doctor / Treatment Guide", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
+                    }
                     }
                 }
             }
